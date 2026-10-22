@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Employee Management</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--text:#1d2433;--muted:#6b7385;--line:#e3e6ee;--accent:#4f46e5;--accent-text:#fff;--danger:#dc2626;--ok:#16a34a;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141b;--card:#1b1f2a;--text:#e8eaf2;--muted:#9aa2b5;--line:#2c3243;--accent:#818cf8;--accent-text:#12141b;--danger:#f87171;--ok:#4ade80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12141b;--card:#1b1f2a;--text:#e8eaf2;--muted:#9aa2b5;--line:#2c3243;--accent:#818cf8;--accent-text:#12141b;--danger:#f87171;--ok:#4ade80;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;margin:0 0 16px}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tab{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;cursor:pointer;font:inherit}
+.tab.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}
+button.btn{margin-top:16px;padding:10px 18px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-text);font:inherit;font-weight:600;cursor:pointer}
+.msg{margin-top:12px;font-size:14px}.ok{color:var(--ok)}.err{color:var(--danger)}
+.bar{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.bar input{flex:1;min-width:180px}
+.count{color:var(--muted);font-size:14px;white-space:nowrap}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);font-size:14px}
+th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.del{background:none;border:1px solid var(--line);color:var(--danger);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;font-size:13px}
+.empty{text-align:center;color:var(--muted);padding:28px 0}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>👥 Employee Management</h1>
+<div class="tabs">
+<button class="tab on" id="t-add">Add Employee</button>
+<button class="tab" id="t-view">View Employees</button>
+</div>
+
+<div class="card" id="p-add">
+<div class="grid">
+<div><label>Full name *</label><input id="name"></div>
+<div><label>Email *</label><input id="email" type="email"></div>
+<div><label>Phone</label><input id="phone" type="tel"></div>
+<div><label>Department</label>
+<select id="dept"><option>HR</option><option>IT</option><option>Finance</option><option>Sales</option><option>Marketing</option><option>Operations</option></select></div>
+<div><label>Designation</label><input id="desig"></div>
+<div><label>Salary</label><input id="salary" type="number" min="0" step="1000"></div>
+<div><label>Joining date</label><input id="jdate" type="date"></div>
+</div>
+<button class="btn" id="save">Save Employee</button>
+<div class="msg" id="msg"></div>
+</div>
+
+<div class="card hide" id="p-view">
+<div class="bar">
+<input id="q" placeholder="🔍 Search by name, department or designation">
+<span class="count" id="count"></span>
+</div>
+<div class="scroll"><table>
+<thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Department</th><th>Designation</th><th>Salary</th><th>Joined</th><th></th></tr></thead>
+<tbody id="rows"></tbody>
+</table></div>
+<div class="empty hide" id="empty">No employee records found.</div>
+</div>
+</div>
+
+<script>
+const KEY = "employees_v1";
+let mem = [];
+const $ = id => document.getElementById(id);
+
+function load() {
+  try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : mem; }
+  catch (e) { return mem; }
+}
+function save(list) {
+  mem = list;
+  try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {}
+}
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function show(tab) {
+  $("p-add").classList.toggle("hide", tab !== "add");
+  $("p-view").classList.toggle("hide", tab !== "view");
+  $("t-add").classList.toggle("on", tab === "add");
+  $("t-view").classList.toggle("on", tab === "view");
+  if (tab === "view") render();
+}
+
+function render() {
+  const q = $("q").value.trim().toLowerCase();
+  const all = load();
+  const list = all.filter(e => !q || [e.name, e.dept, e.desig].some(v => (v || "").toLowerCase().includes(q)));
+  $("count").textContent = "Total: " + list.length;
+  $("empty").classList.toggle("hide", list.length > 0);
+  $("rows").innerHTML = list.slice().reverse().map(e => `<tr>
+    <td>${e.id}</td><td>${esc(e.name)}</td><td>${esc(e.email)}</td><td>${esc(e.phone)}</td>
+    <td>${esc(e.dept)}</td><td>${esc(e.desig)}</td>
+    <td>${e.salary ? Number(e.salary).toLocaleString() : ""}</td><td>${esc(e.jdate)}</td>
+    <td><button class="del" data-id="${e.id}">Delete</button></td></tr>`).join("");
+}
+
+function setMsg(text, ok) {
+  $("msg").textContent = text;
+  $("msg").className = "msg " + (ok ? "ok" : "err");
+}
+
+$("save").onclick = () => {
+  const name = $("name").value.trim(), email = $("email").value.trim();
+  if (!name || !email) return setMsg("Name and email are required.", false);
+  const list = load();
+  if (list.some(e => e.email.toLowerCase() === email.toLowerCase()))
+    return setMsg("An employee with this email already exists.", false);
+  const id = list.reduce((m, e) => Math.max(m, e.id), 0) + 1;
+  list.push({ id, name, email, phone: $("phone").value.trim(), dept: $("dept").value,
+    desig: $("desig").value.trim(), salary: $("salary").value, jdate: $("jdate").value });
+  save(list);
+  ["name","email","phone","desig","salary"].forEach(i => $(i).value = "");
+  setMsg("✅ " + name + " was added successfully!", true);
+};
+
+$("rows").onclick = ev => {
+  const id = ev.target.dataset && ev.target.dataset.id;
+  if (!id) return;
+  if (confirm("Delete this employee?")) { save(load().filter(e => String(e.id) !== id)); render(); }
+};
+$("q").oninput = render;
+$("t-add").onclick = () => show("add");
+$("t-view").onclick = () => show("view");
+$("jdate").value = new Date().toISOString().slice(0, 10);
+</script>
+</body>
+</html>
