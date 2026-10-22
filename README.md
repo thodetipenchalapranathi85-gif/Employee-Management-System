@@ -79,3 +79,10 @@ The database file `employees.db` has one table called `employees`:
 - Admin login
 - Attendance tracking (Present, Absent, Late) with daily, weekly and monthly reports
 - Charts by department
+- ## Live Project Demo
+
+Explore the project here:
+
+🔗 [View Project on Claude](https://claude.ai/artifact/SHUe98zbmzj4CCDGWvLYrX)
+
+
